@@ -50,6 +50,11 @@ export default function Dashboard() {
   const [voiceField, setVoiceField]     = useState('symptoms');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef(null);
+
+  // ── AI DIAGNOSIS STATE ──
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiResult, setAiResult]     = useState(null);
+  const [aiError, setAiError]       = useState('');
   const t = T[lang] || T['en-IN'];
   const currentLang = LANGUAGES.find(l => l.code === lang);
 
@@ -180,6 +185,30 @@ export default function Dashboard() {
   }
 
   function showToast(msg, type = 'success') { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); }
+
+  // ── AI DIAGNOSIS ──
+  async function runAIDiagnosis() {
+    if (!form.symptoms?.trim()) { setAiError('Please enter symptoms first.'); return; }
+    setAiLoading(true); setAiError(''); setAiResult(null);
+    const prompt = `You are a clinical decision support assistant for ASHA (Accredited Social Health Activist) workers in rural India.
+Patient: Age ${form.age || 'unknown'}, Gender ${form.gender || 'unknown'}
+Symptoms: ${form.symptoms}
+Respond ONLY with a valid JSON object, no markdown, no extra text:
+{"conditions":[{"name":"Condition","likelihood":70}],"action":{"type":"treat","label":"Treat at home","summary":"One sentence for ASHA worker."},"medicines":["Paracetamol 500mg every 6 hrs"],"warning_signs":["High fever above 104F"],"diagnosis_text":"Short plain diagnosis, e.g. Likely viral fever — treat at home with paracetamol. Refer if fever persists 3 days."}
+Rules: conditions 2-4 items likelihood<=100 total; action.type must be treat/refer/urgent; medicines OTC only; warning_signs 2-4 items.`;
+    try {
+      const res = await fetch('/api/diagnose', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] }) });
+      const data = await res.json();
+      const raw = (data.content || []).map(b => b.text || '').join('');
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      setAiResult(parsed);
+      if (parsed.diagnosis_text) setForm(prev => ({ ...prev, diagnosis: parsed.diagnosis_text }));
+    } catch(e) { setAiError('AI analysis failed. Please fill diagnosis manually.'); }
+    finally { setAiLoading(false); }
+  }
+
+  function resetAI() { setAiResult(null); setAiError(''); }
 
   const filtered = patients.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -359,6 +388,27 @@ export default function Dashboard() {
         .btn-clear{padding:0.75rem 1.2rem;border-radius:10px;background:white;color:var(--muted);border:1.5px solid var(--border);font-weight:600;font-size:0.88rem;font-family:'DM Sans',sans-serif;cursor:pointer;}
         .btn-clear:hover{border-color:var(--red);color:var(--red);}
 
+        /* AI DIAGNOSIS PANEL */
+        .ai-btn{width:100%;padding:0.72rem;border-radius:10px;background:#1D9E75;color:white;border:none;font-weight:700;font-size:0.88rem;font-family:'DM Sans',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;transition:background .2s;margin-bottom:0.75rem;}
+        .ai-btn:hover:not(:disabled){background:#0f6e56;}
+        .ai-btn:disabled{background:#a8d5c2;cursor:not-allowed;}
+        .ai-error{background:#FCEBEB;color:#791F1F;border-radius:8px;padding:0.5rem 0.9rem;font-size:0.78rem;margin-bottom:0.75rem;}
+        .ai-panel{background:#f3faf5;border:1px solid #b8ddcc;border-radius:14px;padding:1rem 1.1rem;margin-bottom:0.75rem;display:flex;flex-direction:column;gap:0.9rem;}
+        .ai-section-label{font-size:0.65rem;font-weight:700;color:#1D5C38;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:0.4rem;}
+        .ai-action-row{display:flex;align-items:flex-start;gap:0.7rem;}
+        .ai-badge{display:inline-flex;align-items:center;gap:5px;padding:0.3rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:700;flex-shrink:0;}
+        .ai-badge-dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+        .ai-action-summary{font-size:0.78rem;color:#333;line-height:1.5;padding-top:3px;}
+        .ai-cond-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+        .ai-cond-name{font-size:0.78rem;color:#1a3a2a;width:150px;flex-shrink:0;}
+        .ai-bar-bg{flex:1;height:5px;background:#d4e8d8;border-radius:4px;}
+        .ai-bar-fill{height:100%;background:#1D9E75;border-radius:4px;}
+        .ai-pct{font-size:0.7rem;color:#666;width:30px;text-align:right;flex-shrink:0;}
+        .ai-chips{display:flex;flex-wrap:wrap;gap:5px;}
+        .ai-chip-green{font-size:0.7rem;padding:3px 9px;background:#E1F5EE;color:#085041;border-radius:20px;}
+        .ai-chip-red{font-size:0.7rem;padding:3px 9px;background:#FCEBEB;color:#791F1F;border-radius:20px;}
+        .ai-disclaimer{font-size:0.67rem;color:#999;line-height:1.5;margin:0;}
+        .ai-filled-note{font-size:0.65rem;color:#1D9E75;font-weight:600;margin-left:0.5rem;}
         .placeholder-page{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5rem 2rem;text-align:center;color:var(--muted);}
         .placeholder-page .big-icon{font-size:4rem;margin-bottom:1.2rem;}
         .placeholder-page h2{font-family:'Sora',sans-serif;font-weight:700;font-size:1.3rem;color:var(--ink);margin-bottom:0.5rem;}
@@ -590,11 +640,11 @@ export default function Dashboard() {
 
       {/* ── ADD PATIENT MODAL ── */}
       {showForm && (
-        <div className="overlay" onClick={()=>{setShowForm(false);stopVoice();}}>
+        <div className="overlay" onClick={()=>{setShowForm(false);stopVoice();resetAI();}}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-header">
               <h2>🩺 {t.newRecord}</h2>
-              <button className="close-btn" onClick={()=>{setShowForm(false);stopVoice();}}>✕</button>
+              <button className="close-btn" onClick={()=>{setShowForm(false);stopVoice();resetAI();}}>✕</button>
             </div>
             <div className="voice-banner">
               <span style={{fontSize:'1.4rem'}}>🎙</span>
@@ -608,8 +658,44 @@ export default function Dashboard() {
                 <div className="fg"><label>{t.age} <span className="req">*</span></label><input type="number" min="1" max="120" value={form.age} onChange={e=>setForm(f=>({...f,age:e.target.value}))} placeholder="34" required/></div>
                 <div className="fg"><label>{t.gender} <span className="req">*</span></label><select value={form.gender} onChange={e=>setForm(f=>({...f,gender:e.target.value}))}>{GENDERS.map(g=><option key={g}>{g}</option>)}</select></div>
                 <div className="fg full"><label>{t.village} <span className="req">*</span></label><div className="iw has-mic"><input value={form.village} onChange={e=>setForm(f=>({...f,village:e.target.value}))} placeholder="e.g. Rampur, UP" required/><MicBtn field="village"/></div>{activeField==='village'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
-                <div className="fg full"><label>{t.symptoms}</label><div className="iw has-mic"><textarea value={form.symptoms} onChange={e=>setForm(f=>({...f,symptoms:e.target.value}))} placeholder="e.g. बुखार, सिरदर्द / Fever, Headache"/><MicBtn field="symptoms" isTextarea/></div>{activeField==='symptoms'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
-                <div className="fg full"><label>{t.diagnosis}</label><div className="iw has-mic"><textarea value={form.diagnosis} onChange={e=>setForm(f=>({...f,diagnosis:e.target.value}))} placeholder="e.g. Viral Fever — refer PHC"/><MicBtn field="diagnosis" isTextarea/></div>{activeField==='diagnosis'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
+                <div className="fg full"><label>{t.symptoms}</label><div className="iw has-mic"><textarea value={form.symptoms} onChange={e=>{setForm(f=>({...f,symptoms:e.target.value}));resetAI();}} placeholder="e.g. बुखार, सिरदर्द / Fever, Headache"/><MicBtn field="symptoms" isTextarea/></div>{activeField==='symptoms'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
+
+                {/* ── AI DIAGNOSIS PANEL ── */}
+                <div className="fg full">
+                  <button type="button" className="ai-btn" onClick={runAIDiagnosis} disabled={aiLoading}>
+                    {aiLoading ? <><span className="spinner"/>Analysing symptoms...</> : '✦  AI Symptom Analysis'}
+                  </button>
+                  {aiError && <div className="ai-error">{aiError}</div>}
+                  {aiResult && (
+                    <div className="ai-panel">
+                      {aiResult.action && (()=>{
+                        const ac={urgent:{bg:'#FCEBEB',color:'#791F1F',dot:'#E24B4A'},refer:{bg:'#FFF3CD',color:'#633806',dot:'#EF9F27'},treat:{bg:'#EAF3DE',color:'#1D5C38',dot:'#639922'}};
+                        const s=ac[aiResult.action.type]||ac.treat;
+                        return(<div><div className="ai-section-label">Recommended Action</div><div className="ai-action-row"><span className="ai-badge" style={{background:s.bg,color:s.color}}><span className="ai-badge-dot" style={{background:s.dot}}/>{aiResult.action.label}</span><span className="ai-action-summary">{aiResult.action.summary}</span></div></div>);
+                      })()}
+                      {aiResult.conditions?.length>0&&(
+                        <div><div className="ai-section-label">Possible Conditions</div>
+                          {aiResult.conditions.map((c,i)=>(
+                            <div key={i} className="ai-cond-row"><span className="ai-cond-name">{c.name}</span><div className="ai-bar-bg"><div className="ai-bar-fill" style={{width:`${c.likelihood}%`}}/></div><span className="ai-pct">{c.likelihood}%</span></div>
+                          ))}
+                        </div>
+                      )}
+                      {aiResult.medicines?.length>0&&(
+                        <div><div className="ai-section-label">Suggested Medicines</div><div className="ai-chips">{aiResult.medicines.map((m,i)=><span key={i} className="ai-chip-green">{m}</span>)}</div></div>
+                      )}
+                      {aiResult.warning_signs?.length>0&&(
+                        <div><div className="ai-section-label">Escalate to Doctor If</div><div className="ai-chips">{aiResult.warning_signs.map((s,i)=><span key={i} className="ai-chip-red">{s}</span>)}</div></div>
+                      )}
+                      <p className="ai-disclaimer">AI output is a clinical aid only. Always use your judgment. Refer when in doubt.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="fg full">
+                  <label>{t.diagnosis}{aiResult&&<span className="ai-filled-note">✦ AI filled · you can edit</span>}</label>
+                  <div className="iw has-mic"><textarea value={form.diagnosis} onChange={e=>setForm(f=>({...f,diagnosis:e.target.value}))} placeholder="e.g. Viral Fever — refer PHC"/><MicBtn field="diagnosis" isTextarea/></div>
+                  {activeField==='diagnosis'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}
+                </div>
               </div>
               <button className="btn-submit" type="submit" disabled={loading}>{loading?<><span className="spinner"/> Saving...</>:`✅ ${t.save}`}</button>
             </form>

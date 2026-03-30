@@ -83,3 +83,15 @@ export default function PatientForm({ onSuccess }) {
     </form>
   );
 }
+
+import DiagnosisPanel from "@/components/DiagnosisPanel";
+
+// Inside your form JSX, right after the SYMPTOMS textarea:
+<DiagnosisPanel
+  age={formData.age}
+  gender={formData.gender}
+  symptomsText={formData.symptoms}       // auto-reads what ASHA typed in symptoms field
+  onDiagnosisFilled={(text) =>           // auto-fills the Diagnosis field
+    setFormData(prev => ({ ...prev, diagnosis: text }))
+  }
+/>

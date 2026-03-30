@@ -367,7 +367,7 @@ export default function Dashboard() {
             </select>
           </div>
           <nav className="sb-nav">
-            <a href="/" className="sb-link">
+            <a href="https://swasthysathi.vercel.app/" className="sb-link">
               <span className="sb-icon">🏠</span> {t.home}
             </a>
             {navItems.map(n => (

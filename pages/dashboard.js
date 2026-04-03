@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { supabase } from '../lib/supabaseClient';
 
 const GENDERS = ['Female', 'Male', 'Other'];
-const EMPTY_FORM = { name: '', age: '', gender: 'Female', symptoms: '', diagnosis: '', village: '' };
+const EMPTY_FORM = { name: '', age: '', gender: 'Female', symptoms: '', diagnosis: '', village: '', weight: '', temp: '', bp: '', spo2: '', duration: '', duration_unit: 'days' };
 const EMPTY_ASHA = { worker_name: '', worker_id: '', phc_block: '', district: '', state: '', phone: '' };
 
 const LANGUAGES = [
@@ -79,7 +79,8 @@ export default function Dashboard() {
     e.preventDefault();
     if (!form.name || !form.age || !form.village) { showToast(t.fillFields, 'error'); return; }
     setLoading(true);
-    const { data, error } = await supabase.from('patients').insert([{ ...form, age: Number(form.age) }]).select().single();
+    const row = { ...form, age: Number(form.age), weight: form.weight ? Number(form.weight) : null, temp: form.temp ? Number(form.temp) : null, spo2: form.spo2 ? Number(form.spo2) : null, duration: form.duration || null, duration_unit: form.duration_unit || 'days', bp: form.bp || null };
+    const { data, error } = await supabase.from('patients').insert([row]).select().single();
     setLoading(false);
     if (error) { showToast(error.message, 'error'); return; }
     setPatients(prev => [data, ...prev]);
@@ -191,8 +192,9 @@ export default function Dashboard() {
   async function runAIDiagnosis() {
     if (!form.symptoms?.trim()) { setAiError('Please enter symptoms first.'); return; }
     setAiLoading(true); setAiError(''); setAiResult(null);
+    const vitalsInfo = [form.weight && `Weight: ${form.weight}kg`, form.temp && `Temp: ${form.temp}°F`, form.bp && `BP: ${form.bp}`, form.spo2 && `SpO2: ${form.spo2}%`, form.duration && `Illness duration: ${form.duration} ${form.duration_unit}`].filter(Boolean).join(', ');
     const prompt = `You are a clinical decision support assistant for ASHA (Accredited Social Health Activist) workers in rural India.
-Patient: Age ${form.age || 'unknown'}, Gender ${form.gender || 'unknown'}
+Patient: Age ${form.age || 'unknown'}, Gender ${form.gender || 'unknown'}${vitalsInfo ? `\nVitals: ${vitalsInfo}` : ''}
 Symptoms: ${form.symptoms}
 Respond ONLY with a valid JSON object, no markdown, no extra text:
 {"conditions":[{"name":"Condition","likelihood":70}],"action":{"type":"treat","label":"Treat at home","summary":"One sentence for ASHA worker."},"medicines":["Paracetamol 500mg every 6 hrs"],"warning_signs":["High fever above 104F"],"diagnosis_text":"Short plain diagnosis, e.g. Likely viral fever — treat at home with paracetamol. Refer if fever persists 3 days."}
@@ -676,6 +678,18 @@ Rules: conditions 2-4 items likelihood<=100 total; action.type must be treat/ref
                 <div className="fg"><label>{t.age} <span className="req">*</span></label><input type="number" min="1" max="120" value={form.age} onChange={e=>setForm(f=>({...f,age:e.target.value}))} placeholder="34" required/></div>
                 <div className="fg"><label>{t.gender} <span className="req">*</span></label><select value={form.gender} onChange={e=>setForm(f=>({...f,gender:e.target.value}))}>{GENDERS.map(g=><option key={g}>{g}</option>)}</select></div>
                 <div className="fg full"><label>{t.village} <span className="req">*</span></label><div className="iw has-mic"><input value={form.village} onChange={e=>setForm(f=>({...f,village:e.target.value}))} placeholder="e.g. Rampur, UP" required/><MicBtn field="village"/></div>{activeField==='village'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
+
+                {/* ── VITALS SECTION ── */}
+                <div className="fg full" style={{gridColumn:'1/-1',marginTop:'0.5rem'}}>
+                  <label style={{fontSize:'0.7rem',fontWeight:700,color:'var(--g2)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:'0.3rem'}}>⚕️ Vitals (optional)</label>
+                </div>
+                <div className="fg"><label>{t.weight || 'Weight (kg)'}</label><input type="number" step="0.1" min="0" max="300" value={form.weight} onChange={e=>setForm(f=>({...f,weight:e.target.value}))} placeholder="e.g. 55"/></div>
+                <div className="fg"><label>{t.temp || 'Temp (°F)'}</label><input type="number" step="0.1" min="90" max="110" value={form.temp} onChange={e=>setForm(f=>({...f,temp:e.target.value}))} placeholder="e.g. 101.2"/></div>
+                <div className="fg"><label>{t.bp || 'BP (mmHg)'}</label><input value={form.bp} onChange={e=>setForm(f=>({...f,bp:e.target.value}))} placeholder="e.g. 120/80"/></div>
+                <div className="fg"><label>{t.spo2 || 'SpO₂ (%)'}</label><input type="number" min="0" max="100" value={form.spo2} onChange={e=>setForm(f=>({...f,spo2:e.target.value}))} placeholder="e.g. 97"/></div>
+                <div className="fg"><label>{t.durationLabel || 'Duration of Illness'}</label><input type="number" min="0" value={form.duration} onChange={e=>setForm(f=>({...f,duration:e.target.value}))} placeholder="e.g. 3"/></div>
+                <div className="fg"><label>&nbsp;</label><select value={form.duration_unit} onChange={e=>setForm(f=>({...f,duration_unit:e.target.value}))}><option value="hours">{t.hours || 'hours'}</option><option value="days">{t.days || 'days'}</option><option value="weeks">{t.weeks || 'weeks'}</option></select></div>
+
                 <div className="fg full"><label>{t.symptoms}</label><div className="iw has-mic"><textarea value={form.symptoms} onChange={e=>{setForm(f=>({...f,symptoms:e.target.value}));resetAI();}} placeholder="e.g. बुखार, सिरदर्द / Fever, Headache"/><MicBtn field="symptoms" isTextarea/></div>{activeField==='symptoms'&&transcript&&<div className="tc-box">🎙 {transcript}</div>}</div>
 
                 {/* ── AI DIAGNOSIS PANEL ── */}
@@ -731,6 +745,15 @@ Rules: conditions 2-4 items likelihood<=100 total; action.type must be treat/ref
             </div>
             <div className="detail-name">{selected.name}</div>
             <div className="detail-meta">{selected.age} yrs · {selected.gender} · 📍 {selected.village}</div>
+            {(selected.weight || selected.temp || selected.bp || selected.spo2) && (
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:'0.5rem',marginBottom:'1rem'}}>
+                {selected.weight && <div className="dr"><div className="dlabel">Weight</div><div className="dval">{selected.weight} kg</div></div>}
+                {selected.temp && <div className="dr"><div className="dlabel">Temp</div><div className="dval">{selected.temp} °F</div></div>}
+                {selected.bp && <div className="dr"><div className="dlabel">BP</div><div className="dval">{selected.bp}</div></div>}
+                {selected.spo2 && <div className="dr"><div className="dlabel">SpO₂</div><div className="dval">{selected.spo2}%</div></div>}
+              </div>
+            )}
+            {selected.duration && <div className="dr"><div className="dlabel">Duration</div><div className="dval">{selected.duration} {selected.duration_unit || 'days'}</div></div>}
             <div className="dr"><div className="dlabel">{t.symptoms}</div><div className="dval">{selected.symptoms||'—'}</div></div>
             <div className="dr"><div className="dlabel">{t.diagnosis}</div><div className="dval green">{selected.diagnosis||'Pending'}</div></div>
             <div className="dr"><div className="dlabel">Date</div><div className="dval">{new Date(selected.created_at).toLocaleString('en-IN')}</div></div>

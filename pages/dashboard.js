@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [voiceField, setVoiceField]     = useState('symptoms');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const recognitionRef = useRef(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── AI DIAGNOSIS STATE ──
   const [aiLoading, setAiLoading]   = useState(false);
@@ -251,26 +252,32 @@ Rules: conditions 2-4 items likelihood<=100 total; action.type must be treat/ref
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
         :root{--g1:#0a4d2e;--g2:#1a7a4a;--g3:#2ecc71;--gpale:#d4f5e2;--gcards:#f0faf4;--saf:#e67e22;--safl:#fdecd2;--ink:#0d1f14;--muted:#5a7366;--border:#c8e6d4;--red:#e74c3c;}
         body{font-family:'DM Sans',sans-serif;background:#f4f9f6;color:var(--ink);}
-        .shell{display:flex;min-height:100vh;}
-        .sidebar{width:240px;flex-shrink:0;background:var(--g1);color:white;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50;overflow-y:auto;}
-        .sb-logo{font-family:'Sora',sans-serif;font-weight:800;font-size:1.15rem;padding:1.4rem 1.2rem 1rem;border-bottom:1px solid rgba(255,255,255,0.1);}
-        .sb-logo span{color:var(--g3);}
-        .lang-section{padding:0.8rem 1rem;border-bottom:1px solid rgba(255,255,255,0.08);}
-        .lang-section label{font-size:0.63rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:0.35rem;}
-        .lang-select{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;border-radius:8px;padding:0.5rem 0.6rem;font-size:0.83rem;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;}
-        .lang-select option{background:#0a4d2e;}
-        .sb-nav{display:flex;flex-direction:column;gap:0.2rem;padding:0.8rem 0.7rem;flex:1;}
-        .sb-link{display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.9rem;border-radius:10px;font-size:0.88rem;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;transition:all .2s;text-decoration:none;border:none;background:none;width:100%;text-align:left;}
-        .sb-link:hover{background:rgba(255,255,255,0.09);color:white;}
-        .sb-link.active{background:var(--g2);color:white;font-weight:600;}
-        .sb-badge{background:rgba(46,204,113,0.25);color:var(--g3);font-size:0.58rem;font-weight:700;border-radius:4px;padding:0.1rem 0.4rem;margin-left:auto;}
-        .sb-footer{font-size:0.7rem;color:rgba(255,255,255,0.3);padding:1rem 1.2rem;border-top:1px solid rgba(255,255,255,0.08);}
-        /* ASHA badge in sidebar */
-        .sb-asha-card{margin:0.5rem 0.7rem 0;background:rgba(255,255,255,0.07);border-radius:10px;padding:0.7rem 0.9rem;border:1px solid rgba(255,255,255,0.1);}
-        .sb-asha-name{font-size:0.82rem;font-weight:700;color:white;margin-bottom:0.1rem;}
-        .sb-asha-id{font-size:0.7rem;color:rgba(255,255,255,0.45);}
+        .shell{display:flex;flex-direction:column;min-height:100vh;}
+        /* ── TOP NAVBAR ── */
+        .topnav{background:var(--g1);color:white;position:sticky;top:0;z-index:80;}
+        .topnav-inner{display:flex;align-items:center;padding:0 1.5rem;height:56px;gap:1rem;}
+        .topnav-logo{font-family:'Sora',sans-serif;font-weight:800;font-size:1.1rem;white-space:nowrap;}
+        .topnav-logo span{color:var(--g3);}
+        .topnav-links{display:flex;align-items:center;gap:0.15rem;margin-left:1.5rem;flex:1;overflow-x:auto;}
+        .topnav-link{display:flex;align-items:center;gap:0.45rem;padding:0.45rem 0.85rem;border-radius:8px;font-size:0.82rem;font-weight:500;color:rgba(255,255,255,0.6);cursor:pointer;transition:all .2s;text-decoration:none;border:none;background:none;white-space:nowrap;}
+        .topnav-link:hover{background:rgba(255,255,255,0.09);color:white;}
+        .topnav-link.active{background:var(--g2);color:white;font-weight:600;}
+        .topnav-badge{background:rgba(46,204,113,0.25);color:var(--g3);font-size:0.55rem;font-weight:700;border-radius:4px;padding:0.1rem 0.35rem;margin-left:0.2rem;}
+        .topnav-right{display:flex;align-items:center;gap:0.6rem;margin-left:auto;}
+        .asha-chip{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:50px;padding:0.3rem 0.8rem;font-size:0.75rem;font-weight:600;white-space:nowrap;}
+        .lang-select-nav{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;border-radius:8px;padding:0.35rem 0.5rem;font-size:0.78rem;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;}
+        .lang-select-nav option{background:#0a4d2e;color:white;}
+        .hamburger{display:none;background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;padding:0.2rem;}
+        .ham-dropdown{display:none;flex-direction:column;background:var(--g1);border-top:1px solid rgba(255,255,255,0.08);padding:0.5rem 0.8rem 0.8rem;gap:0.15rem;}
+        .ham-dropdown.open{display:flex;}
+        .ham-dropdown .topnav-link{width:100%;justify-content:flex-start;padding:0.6rem 0.9rem;font-size:0.88rem;}
+        .ham-lang{padding:0.6rem 0.9rem;display:flex;flex-direction:column;gap:0.3rem;}
+        .ham-lang label{font-size:0.65rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.06em;}
+        .lang-select-ham{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:white;border-radius:8px;padding:0.5rem 0.6rem;font-size:0.83rem;font-family:'DM Sans',sans-serif;cursor:pointer;outline:none;}
+        .lang-select-ham option{background:#0a4d2e;}
+        @media(max-width:768px){.topnav-links{display:none;}.asha-chip{display:none;}.lang-select-nav{display:none;}.hamburger{display:block;}}
 
-        .main{margin-left:240px;flex:1;display:flex;flex-direction:column;}
+        .main{flex:1;display:flex;flex-direction:column;}
         .topbar{background:white;border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
         .topbar h1{font-family:'Sora',sans-serif;font-weight:700;font-size:1.1rem;}
         .topbar-right{display:flex;align-items:center;gap:0.8rem;}
@@ -433,39 +440,50 @@ Rules: conditions 2-4 items likelihood<=100 total; action.type must be treat/ref
         @keyframes spin{to{transform:rotate(360deg);}}
         .skeleton{background:linear-gradient(90deg,#f0f7f3 25%,#e0f0e8 50%,#f0f7f3 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:8px;height:48px;}
         @keyframes shimmer{to{background-position:-200% 0;}}
-        @media(max-width:900px){.sidebar{display:none;}.main{margin-left:0;}.stats-row{grid-template-columns:repeat(2,1fr);}.form-grid{grid-template-columns:1fr;}.lang-grid{grid-template-columns:repeat(2,1fr);}}
+        @media(max-width:900px){.stats-row{grid-template-columns:repeat(2,1fr);}.form-grid{grid-template-columns:1fr;}.lang-grid{grid-template-columns:repeat(2,1fr);}}
+        @media(max-width:480px){.stats-row{grid-template-columns:1fr;}.topbar{padding:0.8rem 1rem;}.topbar h1{font-size:0.95rem;}.content{padding:1rem;}.search-box input{width:100px;}.btn-voice-top{display:none;}}
       `}</style>
 
       <div className="shell">
-        {/* ── SIDEBAR ── */}
-        <aside className="sidebar">
-          <div className="sb-logo">🌿 Swasthya<span>Sathi</span></div>
-
-          {/* ASHA Worker name in sidebar */}
-          {ashaForm.worker_name && (
-            <div className="sb-asha-card">
-              <div className="sb-asha-name">👩‍⚕️ {ashaForm.worker_name}</div>
-              <div className="sb-asha-id">{ashaForm.worker_id || 'ASHA Worker'} · {ashaForm.district || ''}</div>
+        {/* ── HORIZONTAL TOP NAVBAR ── */}
+        <nav className="topnav">
+          <div className="topnav-inner">
+            <div className="topnav-logo">🌿 Swasthya<span>Sathi</span></div>
+            <div className="topnav-links">
+              <a href="/" className="topnav-link"><span>🏠</span> {t.home}</a>
+              {navItems.map(n => (
+                <button key={n.id} className={`topnav-link${page === n.id ? ' active' : ''}`} onClick={() => setPage(n.id)}>
+                  <span>{n.icon}</span> {n.label}
+                  {n.badge && <span className="topnav-badge">{n.badge}</span>}
+                </button>
+              ))}
             </div>
-          )}
-
-          <div className="lang-section">
-            <label>🌐 Language / भाषा</label>
-            <select className="lang-select" value={lang} onChange={e => setLang(e.target.value)}>
-              {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label} — {l.name}</option>)}
-            </select>
+            <div className="topnav-right">
+              {ashaForm.worker_name && <div className="asha-chip">👩‍⚕️ {ashaForm.worker_name}</div>}
+              <select className="lang-select-nav" value={lang} onChange={e => setLang(e.target.value)}>
+                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+              </select>
+              <button className="hamburger" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Toggle menu">
+                {sidebarOpen ? '✕' : '☰'}
+              </button>
+            </div>
           </div>
-          <nav className="sb-nav">
-            <a href="/" className="sb-link"><span>🏠</span> {t.home}</a>
+          <div className={`ham-dropdown${sidebarOpen ? ' open' : ''}`}>
+            <a href="/" className="topnav-link" onClick={() => setSidebarOpen(false)}><span>🏠</span> {t.home}</a>
             {navItems.map(n => (
-              <button key={n.id} className={`sb-link${page === n.id ? ' active' : ''}`} onClick={() => setPage(n.id)}>
+              <button key={n.id} className={`topnav-link${page === n.id ? ' active' : ''}`} onClick={() => { setPage(n.id); setSidebarOpen(false); }}>
                 <span>{n.icon}</span> {n.label}
-                {n.badge && <span className="sb-badge">{n.badge}</span>}
+                {n.badge && <span className="topnav-badge">{n.badge}</span>}
               </button>
             ))}
-          </nav>
-          <div className="sb-footer">ASHA Worker Portal · v1.0</div>
-        </aside>
+            <div className="ham-lang">
+              <label>🌐 भाषा</label>
+              <select className="lang-select-ham" value={lang} onChange={e => setLang(e.target.value)}>
+                {LANGUAGES.map(l => <option key={l.code} value={l.code}>{l.label} — {l.name}</option>)}
+              </select>
+            </div>
+          </div>
+        </nav>
 
         {/* ── MAIN ── */}
         <div className="main">

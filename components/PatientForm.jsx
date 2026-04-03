@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { insertPatient } from '../lib/patientService';
+import DiagnosisPanel from './DiagnosisPanel';
 
 const INITIAL = {
   name: '', age: '', gender: 'Female',
@@ -65,6 +66,17 @@ export default function PatientForm({ onSuccess }) {
         placeholder="Symptoms (e.g. Fever, Cough, Body Pain)"
         rows={3}
       />
+
+      {/* AI Diagnosis Panel — auto-reads symptoms and fills diagnosis */}
+      <DiagnosisPanel
+        age={form.age}
+        gender={form.gender}
+        symptoms={form.symptoms}
+        onResult={(text) =>
+          setForm(prev => ({ ...prev, diagnosis: text }))
+        }
+      />
+
       <textarea
         name="diagnosis" value={form.diagnosis} onChange={handleChange}
         placeholder="Diagnosis / Notes"
@@ -83,15 +95,3 @@ export default function PatientForm({ onSuccess }) {
     </form>
   );
 }
-
-import DiagnosisPanel from "@/components/DiagnosisPanel";
-
-// Inside your form JSX, right after the SYMPTOMS textarea:
-<DiagnosisPanel
-  age={formData.age}
-  gender={formData.gender}
-  symptomsText={formData.symptoms}       // auto-reads what ASHA typed in symptoms field
-  onDiagnosisFilled={(text) =>           // auto-fills the Diagnosis field
-    setFormData(prev => ({ ...prev, diagnosis: text }))
-  }
-/>
